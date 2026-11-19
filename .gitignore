@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Uploaded and Extracted Runtime Files
+uploads/*
+!uploads/.gitkeep
+extracted_files/*
+!extracted_files/.gitkeep
+malicious.pcap
+
+# IDE / Editor configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment variables & Secrets
+.env
+.env.*
+!.env.example

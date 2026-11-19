@@ -1,0 +1,6 @@
+2026-11-19 08:30:15 192.168.1.100 -> 142.250.190.46 GET /index.html 200 OK
+2026-11-19 08:30:18 185.25.33.44 -> 192.168.1.100 attack detected: malicious payload attempt
+2026-11-19 08:30:22 192.168.1.100 -> 104.21.3.11 unauthorized access denied
+2026-11-19 08:30:30 192.168.1.100 -> 8.8.8.8 DNS query resolved
+2026-11-19 08:31:05 195.22.28.19 -> 192.168.1.100 critical warning: brute force login failed
+2026-11-19 08:31:12 185.25.33.44 -> 192.168.1.100 blocked by security rule

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>trafik Analyzer Uz</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Vis-Network for graphs -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}?v=3">
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+
+<body>
+    <div class="background-animation">
+        <div class="glow"></div>
+        <div class="glow glow-2"></div>
+    </div>
+
+    <div class="container">
+        <header class="glass-panel">
+            <h1>🌐 Azamat Analyzer</h1>
+            <p style="margin: 0; font-size: 0.9rem; color: #b0c4de;">Upload a .cap, .pcap, .pcapng, or .log file to
+                visualize connections and detect threats.</p>
+
+            <div class="upload-section">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="pcapFile" name="file" required style="display: none;">
+                        <label for="pcapFile" class="btn-primary">Fayl Tanlash</label>
+                        <span id="fileName">Fayl yo'q</span>
+                    </div>
+                    <button type="submit" class="btn-success" id="analyzeBtn">Analiz qilish</button>
+                    <button type="button" class="btn-warning" id="demoBtn">Demo (Test) Yuklash</button>
+                    <button type="button" class="btn-danger" id="startLiveBtn">🔴 Jonli Tinglash (Live)</button>
+                    <button type="button" class="btn-warning hidden" id="stopLiveBtn">⏹️ Tinglashni To'xtatish</button>
+                </form>
+            </div>
+
+            <div class="filters-section hidden" id="filtersSection">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Trafikni Filtrlash</h3>
+                <label class="radio-label">
+                    <input type="radio" name="trafficFilter" value="all" checked> Barcha Trafik
+                </label>
+                <label class="radio-label" style="color: #ff5c5c;">
+                    <input type="radio" name="trafficFilter" value="threats"> Faqat Xavfli (C2/Malware)
+                </label>
+                <a href="/download_malicious" class="btn-danger hidden" id="downloadMaliciousBtn"
+                    style="display: block; text-align: center; margin-top: 10px;">⬇️ Xavfli PCAP Yuklash</a>
+            </div>
+
+            <!-- Blocked IPs Section -->
+            <div class="blocked-ips-section hidden" id="blockedIpsSection"
+                style="margin-top: 2rem; background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,92,92,0.3);">
+                <h3 style="color: #ff5c5c; margin-bottom: 1rem;"><i class="fas fa-shield-alt"></i> Bloklangan IP'lar
+                </h3>
+                <ul id="blockedIpsList"
+                    style="list-style: none; padding: 0; margin: 0; color: #f8fafc; font-size: 0.9rem;">
+                    <!-- Blocked IPs will appear here -->
+                </ul>
+            </div>
+
+            <div id="loader" class="hidden">
+                <div class="spinner"></div>
+                <span>Analyzing packets, please wait...</span>
+            </div>
+        </header>
+
+        <main class="dashboard hidden" id="dashboard">
+            <div id="verdictBanner" class="verdict-banner">
+                <!-- Status will go here -->
+            </div>
+
+            <div class="sidebar glass-panel">
+                <h2>Analysis Results</h2>
+                <div class="stats">
+                    <div class="stat-box">
+                        <span class="stat-label">Total Nodes</span>
+                        <span class="stat-value" id="nodeCount">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Total Edges</span>
+                        <span class="stat-value" id="edgeCount">0</span>
+                    </div>
+                </div>
+
+                <div class="warnings-section">
+                    <h3>🚨 Threat / C2 Alerts</h3>
+                    <ul id="warningsList" class="warning-list">
+                        <!-- Warnings will be injected here -->
+                    </ul>
+                </div>
+
+                <div class="credentials-section hidden" id="credentialsSection">
+                    <h3>🔐 O'g'irlangan Parollar</h3>
+                    <ul id="credentialsList" class="warning-list">
+                        <!-- Credentials will be injected here -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <!-- 2. GeoIP Map -->
+                <div class="map-wrapper glass-panel hidden" id="mapSection" style="margin-top: 0; position: relative;">
+                    <h3
+                        style="margin-bottom: 10px; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fas fa-globe"></i> Kiber Shajara</span>
+                        <button id="fullscreenMapBtn" class="btn-primary"
+                            style="padding: 0.3rem 0.8rem; font-size: 0.9rem;"><i class="fas fa-expand"></i> Katta
+                            Ekranga O'tish</button>
+                    </h3>
+                    <div id="worldMap"
+                        style="height: 600px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); width: 100%;">
+                    </div>
+                </div>
+
+                <!-- 3. Minor Charts in a Grid Below -->
+                <div class="dashboards-grid hidden" id="splunkDashboards"
+                    style="margin-top: 1.5rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; height: 350px;">
+                    <div class="chart-container glass-panel hidden" id="chartContainer"
+                        style="margin-top: 0; padding: 1rem; display: flex; flex-direction: column;">
+                        <h3 style="margin-bottom: 10px; color: var(--text-primary); text-align: center;">Vaqt bo'yicha
+                            trafik grafigi</h3>
+                        <div style="position: relative; flex-grow: 1; width: 100%;"><canvas
+                                id="timeSeriesChart"></canvas></div>
+                    </div>
+                    <div class="chart-box glass-panel" style="display: flex; flex-direction: column;">
+                        <h3 style="margin-bottom: 10px; color: var(--text-primary); text-align: center;">Protokollar
+                            Taqsimoti</h3>
+                        <div style="position: relative; flex-grow: 1; width: 100%;"><canvas
+                                id="protocolPieChart"></canvas></div>
+                    </div>
+                    <div class="chart-box glass-panel" style="display: flex; flex-direction: column;">
+                        <h3 style="margin-bottom: 10px; color: var(--text-primary); text-align: center;">Top 5 IP</h3>
+                        <div style="position: relative; flex-grow: 1; width: 100%;"><canvas
+                                id="topIpsBarChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="shell-replay hidden" id="shellReplaySection">
+                    <h3 style="color: #00ff00; margin-bottom: 10px;"><i class="fas fa-terminal"></i> Hujumchi Terminali
+                        (Shell Replay)</h3>
+                    <div class="terminal-box" id="terminalBox">
+                        <!-- Terminal logs will go here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="nodeModal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <span class="close-btn" id="closeModal">&times;</span>
+            <h2 id="modalIpTitle">IP Manzil</h2>
+
+            <div class="modal-body">
+                <div class="info-group" id="modalThreatsGroup"
+                    style="display: none; background: rgba(255, 0, 0, 0.1); border-left: 4px solid #ff5c5c; padding: 10px; margin-bottom: 10px;">
+                    <label style="color: #ff5c5c;">⚠️ Xavf Sabablari (Alerts):</label>
+                    <div id="modalThreats" style="color: #ff5c5c; margin-top: 5px; font-weight: bold;">-</div>
+                </div>
+
+                <div class="info-group">
+                    <label>🌐 Domenlar (Saytlar):</label>
+                    <p id="modalDomains">-</p>
+                </div>
+
+                <div class="info-group">
+                    <label>🔌 Ishlatilgan Portlar:</label>
+                    <p id="modalPorts">-</p>
+                </div>
+
+                <div class="info-group">
+                    <label>📦 Jami Paketlar / Hajmi:</label>
+                    <p id="modalTraffic">-</p>
+                </div>
+
+                <div class="info-group">
+                    <label>🌍 Joylashuv (GeoIP):</label>
+                    <p id="modalGeo">-</p>
+                </div>
+
+                <div class="info-group">
+                    <label>📝 HTTP So'rovlar:</label>
+                    <div id="modalHttp" class="code-block">-</div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="blockIpBtn" class="btn-danger"><i class="fas fa-shield-alt"></i> Ushbu
+                        IP'ni Firewall'da Bloklash</button>
+                    <button type="button" id="unblockIpBtn" class="btn-success hidden"><i
+                            class="fas fa-check-circle"></i> Blokdan Yechish</button>
+                    <a href="#" id="vtBtn" target="_blank" class="btn-warning">VirusTotal-da ko'rish</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=10"></script>
+</body>
+
+</html>
